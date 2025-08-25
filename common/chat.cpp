@@ -1767,9 +1767,14 @@ static common_chat_params common_chat_params_init_hermes_2_pro(const common_chat
     }
 
     if (!inputs.tools.is_null()) {
-        auto supports_thinking = tmpl.source().find("<think>") != std::string::npos;
-        // you should not be able to call enable_thinking if <think> is not supported
-        GGML_ASSERT(!extra_context["enable_thinking"] || extra_context["enable_thinking"] == supports_thinking);
+        auto supports_thinking = tmpl.source().find("<think>") != std::string::npos || 
+                                 tmpl.source().find("'<think>\\n'") != std::string::npos ||
+                                 tmpl.source().find("\"<think>\\n\"") != std::string::npos;
+        
+        // If the template doesn't support thinking, disable thinking regardless of the input setting
+        if (!supports_thinking && extra_context["enable_thinking"]) {
+            extra_context["enable_thinking"] = false;
+        }
         // (content)?(<tool_call>{"name": "foo", "arguments": {"a": 1}}</tool_call>)*
         data.grammar_lazy = true;
         data.grammar = build_grammar([&](const common_grammar_builder & builder) {
